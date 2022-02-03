@@ -36,16 +36,8 @@ func boring(msg string) <-chan string { // Returns receive-only channel of strin
 // START3 OMIT
 func fanIn(input1, input2 <-chan string) <-chan string { // HL
 	c := make(chan string)
-	go func() {
-		for {
-			c <- <-input1
-		}
-	}() // HL
-	go func() {
-		for {
-			c <- <-input2
-		}
-	}() // HL
+	go func() {for {c <- <-input1}}() // HL
+	go func() {for {c <- <-input2}}() // HL
 	return c
 }
 
