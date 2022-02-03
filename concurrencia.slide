@@ -1,0 +1,427 @@
+Go - Concurrencia y patrones comunes
+
+Gracias Rob Pike
+
+* Introduccion
+
+Una de las cosas que mas levanta la atencion del lenguaje es su capacidad nativa para diseñar programas concurrentes.
+
+Agenda:
+
+- Porque es nativa para go?
+- Que es la concurrencia?
+- En que situaciones agrega valor?
+- Como lo uso?
+
+- Ejemplos con patrones comunes
+
+* Porque la concurrencia es nativa para go?
+
+
+Que vemos hoy?
+
+Un mundo donde todo se hace una cosa a la vez?
+
+O vemos un mundo con diversas entidades de comportamiento independiente que interactuan entre si?
+
+El procesamiento de manera secuencial no es suficiente para modelar comportamientos necesarios en la actualidad.
+
+
+* Que es la concurrencia?
+
+Concurrencia es la composicion de ejecuciones independientes.
+
+La concurrencia es una manera de estructurar codigo, especialmente para que este se vea mas limpio y su diseño se asimile al del problema en el mundo real.
+
+No es paralelismo.
+
+* No es paralelismo
+
+No es paralelismo, pero lo permite.
+
+Si tenemos un solo procesador, nuestro programa puede ser concurrente pero no puede ejecutar en paralelo.
+
+Por ende, un progama concurrente bien escrito puede correr eficientemente en paralelo en un multiprocesador.
+
+
+* Una forma de modelar un programa 
+
+Facil de entender.
+
+Facil de usar.
+
+Facil de pensar.
+
+No hay que ser un experto!
+
+(Mucho mejor que lidiar con los detalles criticos del paralelismo (threads, semaphores, locks, barriers, etc.))
+
+* Basic Examples
+
+* Funcion aburrida
+Necesitamos un ejemplo para mostrar las propiedades interesantes en los primitivos de concurrencia.
+
+Para evitar distracciones hacemos un ejemplo aburrido.
+
+.play concurrency/support/boring.go /START/,/STOP.*/
+
+* Funcion un poco menos aburrida
+
+Hace los intervalos entre cada print impredecibles (<1000ms)
+
+.play concurrency/support/lessboring.go /START/,/STOP/
+
+* Infinito
+
+Esta funcion aburrida no termina nunca ademas de aburrir.
+
+.play concurrency/support/lessboring.go /^func.main/,$
+
+* Probamos una rutina
+
+La declaracion go ejecuta la funcion que le sigue, pero no bloquea. (no puede retornar un valor)
+
+Ejecuta una goroutine.
+
+Se podria decir que es como poner al final de un commando de shell un &.
+
+.play concurrency/support/goboring.go 1,/^}/
+
+* Intento fallido
+
+Cuando la funcion main() de un programa finaliza, finalizan las rutinas que estaban ejecutandose.
+
+Esperamos un poco a ver si realmente estan estos dos procesos ejecutandose.
+
+.play concurrency/support/waitgoboring.go /func.main/,/^}/
+
+* Goroutines
+
+Que es una goroutine? Es la ejecucion independiente de una funcion, se usa con el prefijo go delante de la llamada a una funcion.
+
+Tiene su propio call-stack, el mismo se adapta al tamaño necesario.
+
+Es barato. Es comun ver programas con miles de goroutines, y hasta cientos de miles.
+
+No es un thread.
+
+Un programa con miles de goroutines funciona aunque tenga disponible un solo thread.
+
+Ya que se multiplexan dinámicamente en subprocesos según sea necesario para mantener todas las goroutines en ejecución.
+
+De todo modos si pensamos en una goroutine como un thread muy barato, no estariamos muy lejos...
+
+* Comunicacion
+
+Nuestros ejemplos aburridos hicieron trampa: nunca se obtuvo desde el main el output de la goroutine
+
+Solo se escribio en la consola...
+
+Para una conversacion es necesatio tener comunicacion
+
+* Channels
+
+Un channel en Go provee una coneccion entre goroutines, permitiendoles comunicarse.
+
+.code concurrency/support/helpers.go /START1/,/STOP1/
+.code concurrency/support/helpers.go /START2/,/STOP2/
+.code concurrency/support/helpers.go /START3/,/STOP3/
+
+* Usando channels
+
+Un channel que conecta el main y una goroutine aburrida para asi poder comunicarse.
+
+.play concurrency/support/changoboring.go /START1/,/STOP1/
+.code concurrency/support/changoboring.go /START2/,/STOP2/
+
+* Sincronizacion
+
+Cuando el main ejecuta <–c bloquea hasta recibir un nuevo valor.
+
+Tambien cuando la funcion aburrida ejecuta c <– value bloquea hasta que se este esperando un valor en c.
+
+El sender y el reciver de la comunicacion necesitan estar listos para hacer su parte, si no, se espera hasta que lo esten.
+
+Por eso es que los channels ademas de comunicar sincronizan.
+
+* !(Buffered channels)
+
+Los channels tambien pueden ser creados con un buffer.
+
+El channel con buffer pierde la sincronizacion
+
+Puede ser importante para resolver determinados tipos de problemas, su uso lleva otro razonamiento.
+
+Hoy no los vamos a ver.
+
+* El approach en Go
+
+"Don't communicate by sharing memory, share memory by communicating." - Ni idea quien
+
+* "Patterns"
+
+* Generator: function that returns a channel
+
+Channels are first-class values, just like strings or integers.
+
+.play concurrency/support/generatorboring.go /START1/,/STOP1/
+.code concurrency/support/generatorboring.go /START2/,/STOP2/
+
+* Channels as a handle on a service
+
+Our boring function returns a channel that lets us communicate with the boring service it provides.
+
+We can have more instances of the service.
+
+.play concurrency/support/generator2boring.go /START1/,/STOP1/
+
+* Multiplexing
+
+These programs make Joe and Ann count in lockstep.
+We can instead use a fan-in function to let whosoever is ready talk.
+
+.code concurrency/support/faninboring.go /START3/,/STOP3/
+.play concurrency/support/faninboring.go /START1/,/STOP1/
+
+* Fan-in
+
+.image concurrency/images/gophermegaphones.jpg
+
+* Restoring sequencing
+
+Send a channel on a channel, making goroutine wait its turn.
+
+Receive all messages, then enable them again by sending on a private channel.
+
+First we define a message type that contains a channel for the reply.
+
+.code concurrency/support/sequenceboring.go /START0/,/STOP0/
+
+* Restoring sequencing.
+
+Each speaker must wait for a go-ahead.
+
+.code concurrency/support/sequenceboring.go /START1/,/STOP1/
+.code concurrency/support/sequenceboring.go /START2/,/STOP2/
+.play concurrency/support/sequenceboring.go /START3/,/STOP3/
+
+* Select
+
+A control structure unique to concurrency.
+
+The reason channels and goroutines are built into the language.
+
+* Select
+
+The select statement provides another way to handle multiple channels.
+It's like a switch, but each case is a communication:
+- All channels are evaluated.
+- Selection blocks until one communication can proceed, which then does.
+- If multiple can proceed, select chooses pseudo-randomly.
+- A default clause, if present, executes immediately if no channel is ready.
+
+.code concurrency/support/select.go /START0/,/STOP0/
+
+* Fan-in again
+
+Rewrite our original fanIn function. Only one goroutine is needed. Old:
+
+.code concurrency/support/faninboring.go /START3/,/STOP3/
+
+* Fan-in using select
+
+Rewrite our original fanIn function. Only one goroutine is needed. New:
+
+.play concurrency/support/selectboring.go /START3/,/STOP3/
+
+* Timeout using select
+
+The time.After function returns a channel that blocks for the specified duration.
+After the interval, the channel delivers the current time, once.
+
+.play concurrency/support/timeout.go /START1/,/STOP1/
+
+* Timeout for whole conversation using select
+
+Create the timer once, outside the loop, to time out the entire conversation.
+(In the previous program, we had a timeout for each message.)
+
+.play concurrency/support/timeoutall.go /START1/,/STOP1/
+
+
+* Quit channel
+
+We can turn this around and tell Joe to stop when we're tired of listening to him.
+
+.code concurrency/support/quit.go /START1/,/STOP1/
+.play concurrency/support/quit.go /START2/,/STOP2/
+
+
+* Receive on quit channel
+
+How do we know it's finished? Wait for it to tell us it's done: receive on the quit channel
+
+.code concurrency/support/rcvquit.go /START1/,/STOP1/
+.play concurrency/support/rcvquit.go /START2/,/STOP2/
+
+* Daisy-chain
+
+.play concurrency/support/daisy.go /func/,$
+
+* Chinese whispers, gopher style
+
+.image concurrency/images/gophereartrumpet.jpg
+
+* Systems software
+
+Go was designed for writing systems software.
+Let's see how the concurrency features come into play.
+
+* Example: Google Search
+	
+Q: What does Google search do?
+
+A: Given a query, return a page of search results (and some ads).
+
+Q: How do we get the search results?
+
+A: Send the query to Web search, Image search, YouTube, Maps, News,etc., then mix the results.
+
+How do we implement this?
+
+* Google Search: A fake framework
+
+We can simulate the search function, much as we simulated conversation before.
+
+.code concurrency/support/google.go /START2/,/STOP2/
+
+* Google Search: Test the framework
+
+.play concurrency/support/google.go /func.main/,/}/
+
+* Google Search 1.0
+
+The Google function takes a query and returns a slice of Results (which are just strings).
+
+Google invokes Web, Image, and Video searches serially, appending them to the results slice.
+
+.play concurrency/support/google.go /START1/,/STOP1/
+
+* Google Search 2.0
+
+Run the Web, Image, and Video searches concurrently, and wait for all results.
+
+No locks.  No condition variables.  No callbacks.
+
+.play concurrency/support/google2.1.go /Google/,/^}/
+
+* Google Search 2.1
+
+Don't wait for slow servers. No locks.  No condition variables.  No callbacks.
+
+.play concurrency/support/google2.2.go /START/,/STOP/
+
+* Avoid timeout
+
+Q: How do we avoid discarding results from slow servers?
+
+A: Replicate the servers.  Send requests to multiple replicas, and use the first response.
+
+.code concurrency/support/google2.3.go /START1/,/STOP1/
+
+* Using the First function
+
+.play concurrency/support/google2.3.go /START2/,/STOP2/
+
+* Google Search 3.0
+
+Reduce tail latency using replicated search servers.
+
+.play concurrency/support/google3.0.go /START/,/STOP/
+
+* And still…
+
+No locks.  No condition variables.  No callbacks.
+
+* Summary
+
+In just a few simple transformations we used Go's concurrency primitives to convert a
+
+- slow
+- sequential
+- failure-sensitive
+
+program into one that is
+
+- fast
+- concurrent
+- replicated
+- robust.
+
+* More party tricks
+
+There are endless ways to use these tools, many presented elsewhere.
+
+Chatroulette toy:
+
+.link http://golang.org/s/chat-roulette
+
+Load balancer:
+
+.link http://golang.org/s/load-balancer
+
+Concurrent prime sieve:
+
+.link http://golang.org/s/prime-sieve
+
+Concurrent power series (by McIlroy):
+
+.link http://golang.org/s/power-series
+
+* Don't overdo it
+
+They're fun to play with, but don't overuse these ideas.
+
+Goroutines and channels are big ideas. They're tools for program construction.
+
+But sometimes all you need is a reference counter.
+
+Go has "sync" and "sync/atomic" packages that provide mutexes, condition variables, etc. They provide tools for smaller problems.
+
+Often, these things will work together to solve a bigger problem.
+
+Always use the right tool for the job.
+
+* Conclusions
+
+Goroutines and channels make it easy to express complex operations dealing with
+
+- multiple inputs
+- multiple outputs
+- timeouts
+- failure
+
+And they're fun to use.
+
+
+* Links
+
+Go Home Page:
+
+.link http://golang.org
+
+Go Tour (learn Go in your browser)
+
+.link http://tour.golang.org
+
+Package documentation:
+
+.link http://golang.org/pkg
+
+Articles galore:
+
+.link http://golang.org/doc
+
+Concurrency is not parallelism:
+
+.link http://golang.org/s/concurrency-is-not-parallelism
