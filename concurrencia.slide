@@ -183,9 +183,13 @@ Un channel que conecta el main y una goroutine aburrida para asi poder comunicar
 
 * Sincronizacion
 
-Cuando el main ejecuta <–c (leer channel) bloquea hasta recibir un nuevo valor.
+Cuando el main ejecuta 
+.code concurrency/support/helpers.go /START3/,/STOP3/
+bloquea hasta recibir un nuevo valor.
 
-Tambien cuando la funcion aburrida ejecuta c <– value (escribir channel) bloquea hasta que se este esperando un valor en c.
+Tambien cuando la funcion aburrida ejecuta 
+.code concurrency/support/helpers.go /START2/,/STOP2/
+bloquea hasta que se este esperando un valor en c.
 
 El sender y el reciver de la comunicacion necesitan estar listos para hacer su parte, si no, se espera hasta que lo esten.
 
@@ -211,7 +215,7 @@ Hoy no los vamos a ver.
 
 "Don't communicate by sharing memory, share memory by communicating."
 
-No comunicarse compartiendo memoria, compartir memoria comunicandote.
+No comunicar compartiendo memoria, compartir memoria comunicando.
 
 
 
