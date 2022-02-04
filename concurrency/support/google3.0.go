@@ -53,7 +53,7 @@ func First(query string, replicas ...Search) Result {
 
 func fakeSearch(kind string) Search {
 	return func(query string) Result {
-		time.Sleep(time.Duration(rand.Intn(100)) * time.Millisecond)
+		time.Sleep(time.Duration(rand.Intn(90)) * time.Millisecond)
 		return Result(fmt.Sprintf("%s result for %q\n", kind, query))
 	}
 }
